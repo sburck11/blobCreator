@@ -3,12 +3,13 @@
 # pick starting pt on binary plot
 # 
 # Propagate:
-	get next pixel
-	check for hole on 1/0 plot using sweep line algo.
-	pick rand greater than blobThresh, less than surrounding blob +- innerThresh, color pixel
+	# get next pixel
+	# check for hole on 1/0 plot using sweep line algo.
+	# pick rand greater than blobThresh, less than surrounding blob +- innerThresh, color pixel
 
 # fill outer:
-	pick random
+	 pick random
+	 
 
 # 
 
