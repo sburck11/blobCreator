@@ -1,5 +1,6 @@
 import random
 
+
 mu = 125
 sigma = 20
 
