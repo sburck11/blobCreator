@@ -36,21 +36,22 @@ from blobClass.blob import Blob
 # plt.imshow(imgArr)
 # plt.savefig('testImg.bmp')
 
-numBlob=1
-minSize=20
-maxSize=35
+numBlob=3
+minSize=1000
+maxSize=2300
 outerThresh=50
 blobThresh=50
 innerThresh=50
-sigma=2
-path='/Users/Sam/Desktop/regenProj/blobCreator'#/Images'
+sigma=55
+path='/Users/Sam/Desktop/regenProj/blobCreator'
 
 testImage=Blob(numBlob, minSize, maxSize, outerThresh, blobThresh, innerThresh,
 		sigma, path, 'test')
 testImage.makeImg()
 
 # for i in range(100):
-# 	sigma = 1001 - (i*10)
+# 	print i
+# 	sigma = (1.25*i)+1
 # 	minSize=random.randint(500, 1000)
 # 	maxSize=random.randint(1500, 5000)
 # 	name='img_' + str(i) + '_sigma_' + str(sigma)
