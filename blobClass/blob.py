@@ -6,13 +6,12 @@ IMGSIZE = 100
 
 class Blob():
 
-	def __init__(self, numBlob, minSize, maxSize, outerThresh, blobThresh, innerThresh, sigma, dirPath, name):
+	def __init__(self, numBlob, minSize, maxSize, blobThresh, innerThresh, sigma, dirPath, name):
 		self.imgType=np.zeros((IMGSIZE, IMGSIZE), dtype=np.int)
 		self.imgPlot=np.zeros((IMGSIZE, IMGSIZE), dtype=np.int)
 		self.numBlob=numBlob
 		self.minSize=minSize
 		self.maxSize=maxSize
-		self.outerThresh=outerThresh
 		self.blobThresh=blobThresh
 		self.innerThresh=innerThresh
 		self.typeList=[]
@@ -27,9 +26,9 @@ class Blob():
 		self.sigma=sigma
 		self.dirPath=dirPath
 		self.name=name
+		self.startPT=[]
 
 	def clearSurrounding(self, x, y, rad, pixVal):
-		surroundingRange=[]
 		# print 'in clearSurrounding x = '+str(x)+', y = '+str(y)
 		for i in range(1+2*rad):
 			a=i-rad
@@ -37,24 +36,25 @@ class Blob():
 				b=j-rad
 				if((0<=a+x<IMGSIZE) and (0<=b+y<IMGSIZE)):
 					# print i, j
-					if(self.imgType[a+x][b+y]!=pixVal):
+					if(self.imgType[a+x][b+y] not in pixVal):
 						# print 'RETURNING FALSE'
 						# print 'pixVal = '+str(pixVal)+', val at location = '+str(self.imgType[a+x, b+y])
 						return False
 		return True
 
 # Take coordinates of a pixel, return probability of pixel inclusion based on last pixels assigned.
-	def getPix(self):
+	def getPix(self,i ,size):
 		if(self.pix==None):
 			found=False
 			while(found==False):
 				a=random.randint(0, (IMGSIZE-1))
 				b=random.randint(0, (IMGSIZE-1))
-				if(self.clearSurrounding(a, b, 5, 0)==True):
+				if(self.clearSurrounding(a, b, 5, [0])==True):
 					# print 'true'
 					self.pix=(a, b)
 					found=True
-			return
+					self.startPT.append(self.pix)
+			return True
 		if(self.stage==0):
 			# print 'In getPix stg. 0'
 
@@ -67,29 +67,32 @@ class Blob():
 			x=x-1
 			if(x<0):
 				x=0
-			# print 'Len typelist = ' + str(len(self.typeList))
-			# print 'x=' + str(x)
+			if(len(self.typeList)==0):
+				print self.typeList
+				print 'Len typelist = ' + str(len(self.typeList))
+				print 'x=' + str(x)+', i = '+str(i)+', size = '+str(size)
+				return False
 			self.pix=self.typeList[x]
 			self.typeList.remove(self.pix)
-			return
+			return True
 		if(self.stage==1):
 			localSigma=len(self.blobList)*(self.sigma/50)
 			x=int(random.gauss(len(self.blobList)/2, localSigma))
 			if(x>len(self.blobList)):
 				x=len(self.blobList)-(x-len(self.blobList))
 			x=x-1
-			self.pix=self.blobList[x]
-			blobList.pop([x])
-			return
-		if(self.stage==2):
-			localSigma=len(self.blobList)*(self.sigma/50)
-			x=int(random.gauss(len(self.outerList)/2, localSigma))
-			if(x>len(self.outerList)):
-				x=len(self.outerList)-(x-len(self.outerList))
-			x=x-1
-			self.pix=self.outerList[x]
-			outerList.pop([x])
-			return
+			self.pix=self.blobList.pop()
+
+			return True
+		# if(self.stage==2):
+		# 	localSigma=len(self.blobList)*(self.sigma/50)
+		# 	x=int(random.gauss(len(self.outerList)/2, localSigma))
+		# 	if(x>len(self.outerList)):
+		# 		x=len(self.outerList)-(x-len(self.outerList))
+		# 	x=x-1
+		# 	self.pix=self.outerList[x]
+		# 	outerList.pop([x])
+		# 	return True
 
 	def checkNeighbors(self):
 		pix=self.pix
@@ -246,33 +249,107 @@ class Blob():
 					toFill.append((i,j))
 		return toFill
 
+	def findBGPix(self):
+		for i in range(IMGSIZE):
+			for j in range(IMGSIZE):
+				if(self.imgType[i,j]==0):
+					self.pix=(i,j)
+					return
+
+	def getLegalShades(self):
+		shades=(1,255)
+		seq=[-1, 0, 1]
+		for i in seq:
+			a=self.pix[0]+i
+			for j in seq:
+				b=self.pix[1]+j
+				# Don't check shade for selected pix, only for neighbors
+				if(i==j==0):
+					continue
+				if((0<=a<IMGSIZE) and (0<=b<IMGSIZE)):
+					# If cell unshaded, skip
+					if(self.imgPlot[a, b]==0):
+						continue
+					# Make sure blob thresh can be met by any border cells.
+					if (self.imgType[a,b]==0 and shades[1]>255-self.blobThresh):
+						shades[1]=255-self.blobThresh
+					if (self.imgType[a,b]!=0 and shades[0]<1+self.blobThresh):
+						shades[0]=1+self.blobThresh
+
+					if(self.imgType[a,b]!=self.imgType[self.pix[0], self.pix(1)]):
+						if(self.imgType[a,b]==0):
+							if(shades[0]<(self.imgPlot[a,b]-self.blobThresh)):
+								shades[0]=self.imgPlot[a,b]-self.blobThresh
+							if(shades[1]>(self.imgPlot[a,b]-self.blobThresh)):
+								shades[1]=self.imgPlot[a,b]-self.blobThresh
+						if(self.imgType[a,b]!=0):
+							if(shades[0]>(self.imgPlot[a,b]+self.blobThresh)):
+								shades[0]=self.imgPlot[a,b]+self.blobThresh
+							if(shades[1]<(self.imgPlot[a,b]+self.blobThresh)):
+								shades[1]=self.imgPlot[a,b]+self.blobThresh
+					else:
+							if(shades[0]<(self.imgPlot[a,b]-self.innerThresh)):
+								shades[0]=self.imgPlot[a,b]-self.innerThresh
+							if(shades[1]>(self.imgPlot[a,b]-self.innerThresh)):
+								shades[1]=self.imgPlot[a,b]-self.innerThresh
+		print shades
+		return shades
+					
+
+
+	def fillShades(self, i):
+
+		filled=False
+
+		while(filled==False):
+			if(self.pix==None):
+				if(i==0)
+					self.findBGPix()
+				else:
+					self.pix=self.startPT.pop()
+			else:
+				if(self.getPix()==False):
+					filled=True
+					continue
+			self.addNeighbors()
+			shades=self.getLegalShades()
+			print shades
+			# if(shades==None):
+
+			x=int(random.gauss((shades[1]*2), self.sigma))
+			if(x>shades[1]):
+				x=shades[1]
+			if(x<shades[0]):
+				x=shades[0]
+			self.imgPlot[self.pix[0], self.pix[1]]=x
+
+
+
 	def makeImg(self):
 		img=Image.new('L', (IMGSIZE,IMGSIZE), 'black')
 		# self.imgType=img.load()
 
 		for i in range(self.numBlob):
-			print "\n\n\n\n\nblob: " + str(i)
+			# print "\n\n\n\n\nblob: " + str(i)
 			self.blobNum=i+1
 			# print 'WORKING ON PIX ' + str(i)
 			blobSize = random.randint(self.minSize, self.maxSize)
 			# print blobSize
 			for j in range(blobSize):
-				if(j%100==0):
-					print 'blobSize = '+str(blobSize)+', iteration = '+str(j)+', blobNum = '+str(self.blobNum)
-				# print self.typeList
+
 				self.last=self.pix
-				self.getPix()
-				# print self.pix
-				# # print self.typeList
-				# print '\n'
-				if(self.checkNeighbors==False):
+				if(self.getPix(j, blobSize)==False):
+					break
+				legalPix=[0, self.blobNum]
+				if(self.clearSurrounding(self.pix[0], self.pix[1], 5, legalPix)==False):
 					goodPix=False
 					while(goodPix==False):
-						self.getPix()
-						if(self.checkNeighbors==True):
-							goodPix=True
+						if(self.getPix(j, blobSize)==False):
+							break
+							break
 
-				 # self.holeSweep()
+						if(self.clearSurrounding(self.pix[0], self.pix[1], 5, legalPix)==True):
+							goodPix=True
 
 				self.addNeighbors()
 				# print "Pix = " + str(self.pix[0]) + ", " + str(self.pix[1])
@@ -282,10 +359,6 @@ class Blob():
 				# if(len(self.typeList)==0):
 				# 	print i
 
-			#FILL SINGLE PIXEL HOLES!
-
-			# intervals=self.holeSweep()
-			# self.fillHoles(i, intervals)
 				if((j==(blobSize/2)) or (j==(3*blobSize/4)) or j==blobSize-1):
 
 					visited=self.holeBFS()
@@ -294,26 +367,37 @@ class Blob():
 					# print toFill
 					for k in toFill:
 						self.imgType[k[0],k[1]]=self.blobNum
-					print 'FILLED '+str(len(toFill))+' PIX'
+					# print 'FILLED '+str(len(toFill))+' PIX'
 
-			# if(self.fillHoles(intervals, i)==False):
-			# 	GO BACK!!!
-			# print blobSize
 			self.pix=None
+			self.typeList=[]
+		self.stage=1
+		for i in range(self.numBlob+1):
+			if(i==0):
+				self.findBGPix()
+				self.fillShades(i)
+
+			else:
+				self.fillShades(i)
+
 		toSave=img.load()
+		# for i in range(IMGSIZE):
+		# 	for j in range(IMGSIZE):
+		# 		if(self.imgType[i,j]==0):
+		# 			toSave[i,j]=0
+		# 		if(self.imgType[i,j]==1):
+		# 			toSave[i,j]=75
+		# 		if(self.imgType[i,j]==2):
+		# 			toSave[i,j]=160
+		# 		if(self.imgType[i,j]==3):
+		# 			toSave[i,j]=255
+
 		for i in range(IMGSIZE):
 			for j in range(IMGSIZE):
-				if(self.imgType[i,j]==0):
-					toSave[i,j]=0
-				if(self.imgType[i,j]==1):
-					toSave[i,j]=75
-				if(self.imgType[i,j]==2):
-					toSave[i,j]=160
-				if(self.imgType[i,j]==3):
-					toSave[i,j]=255
+				toSave[i,j]=self.imgPlot[i,j]
 
 		self.pix=None
-		self.typeList=[]
+		# self.typeList=[]
 
 		img.save(self.dirPath + '/' + self.name + '.png')
 
