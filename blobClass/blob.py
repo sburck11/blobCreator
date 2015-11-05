@@ -1,12 +1,24 @@
-from PIL import Image
+from PIL import Image, ImageFilter
 import numpy as np
 import random
+import math
 
 IMGSIZE = 100
 
+def mirrorDiag(plot):
+	# print plot
+	new=np.zeros((IMGSIZE, IMGSIZE), dtype=np.int)
+	for i in range(IMGSIZE):
+		for j in range(IMGSIZE):
+
+			new[i,j]=plot[j,i]
+			new[j,i]=plot[i,j]
+	# print new
+	return new
+
 class Blob():
 
-	def __init__(self, numBlob, minSize, maxSize, blobThresh, innerThresh, sigma, shaderSigma, dirPath, betweenBlobs, name):
+	def __init__(self, numBlob, minSize, maxSize, blobThresh, innerThresh, sigma, shaderSigma, dirPath, betweenBlobs, touchingEdge, name):
 		self.imgType=np.zeros((IMGSIZE, IMGSIZE), dtype=np.int)
 		self.imgPlot=np.zeros((IMGSIZE, IMGSIZE), dtype=np.int)
 		self.shaded=np.zeros((IMGSIZE, IMGSIZE), dtype=np.int)
@@ -22,7 +34,7 @@ class Blob():
 		self.last=None
 		# 0 = filling binType, 1 = filling blob, 2 = filling background
 		self.stage=0
-		#current blob being filles
+		# current blob being filles
 		self.blobNum=0
 		self.sigma=sigma
 		self.shaderSigma=shaderSigma
@@ -30,6 +42,7 @@ class Blob():
 		self.name=name
 		self.startPT=[]
 		self.betweenBlobs=betweenBlobs
+		self.touchingEdge=touchingEdge
 
 	def clearSurrounding(self, x, y, rad, pixVal):
 		# print 'in clearSurrounding x = '+str(x)+', y = '+str(y)
@@ -48,19 +61,43 @@ class Blob():
 						return False
 		return True
 
-# Take coordinates of a pixel, return probability of pixel inclusion based on last pixels assigned.
-	def getPix(self,i ,size):
-		if(self.pix==None):
-			found=False
-			while(found==False):
-				a=random.randint(0, (IMGSIZE-1))
-				b=random.randint(0, (IMGSIZE-1))
-				if(self.clearSurrounding(a, b, self.betweenBlobs, [0])==True):
-					# print 'true'
-					self.pix=(a, b)
-					found=True
-					self.startPT.append(self.pix)
+		
+
+	def rootEdgeDist(self, size, pix):
+		print size
+		rad=math.sqrt(size/3.142)
+		a=pix[0]
+		b=IMGSIZE-1-pix[0]
+		c=pix[0]
+		d=IMGSIZE-1-pix[0]
+		if(min(a,b,c,d)<(35)):#2*rad)):
+			return False
+		else:
 			return True
+
+
+# Take coordinates of a pixel, return probability of pixel inclusion based on last pixels assigned.
+	def getPix(self,size):
+		if(self.pix==None):
+			if(self.touchingEdge==False):
+				found=False
+				while(found==False):
+					a=random.randint(0, (IMGSIZE-1))
+					b=random.randint(0, (IMGSIZE-1))
+					if(self.clearSurrounding(a, b, self.betweenBlobs, [0])==True):
+						# print 'true'
+						# if(self.touchingEdge==True and self.rootEdgeDist(size, (a,b))==False):
+						# 	continue
+						self.pix=(a, b)
+						found=True
+						self.startPT.append(self.pix)
+				return True
+			else:
+				a=random.randint(29,69)
+				b=random.randint(29,69)
+				self.pix=(a,b)
+				self.startPT.append(self.pix)
+				return True
 		if(self.stage==0):
 		# print 'In getPix stg. 0'
 
@@ -120,6 +157,13 @@ class Blob():
 					return False
 		return True
 
+	def isEdge(self, pix):
+		coords=[0,1,2,IMGSIZE-3,IMGSIZE-2,IMGSIZE-1]
+		if(((pix[0] in coords) or (pix[1] in coords)) and self.touchingEdge==True):
+			# print "IN COORDS!"
+			return False
+		else:
+			return True
 
 	def addNeighbors(self):
 		neighborList=[]
@@ -132,46 +176,33 @@ class Blob():
 			currentList=self.blobList
 			pixType=self.blobNum
 
-		if((pix[0]<(IMGSIZE-1)) and ((pix[0]+1, pix[1]) not in currentList)
+		if(self.isEdge((pix[0]+1, pix[1])) and (pix[0]<(IMGSIZE-1)) and ((pix[0]+1, pix[1]) not in currentList)
 			and (self.imgType[pix[0]+1, pix[1]]==pixType) and self.imgPlot[pix[0]+1, pix[1]]==0):
 				neighborList.append((pix[0]+1, pix[1]))
-		if((pix[0]>0) and ((pix[0]-1, pix[1]) not in currentList)
+		if(self.isEdge((pix[0]-1, pix[1])) and (pix[0]>0) and ((pix[0]-1, pix[1]) not in currentList)
 			and (self.imgType[pix[0]-1, pix[1]]==pixType) and self.imgPlot[pix[0]-1, pix[1]]==0):
 				neighborList.append((pix[0]-1, pix[1]))
-		if((pix[1]<(IMGSIZE-1)) and ((pix[0], pix[1]+1) not in currentList)
+		if(self.isEdge((pix[0], pix[1]+1)) and (pix[1]<(IMGSIZE-1)) and ((pix[0], pix[1]+1) not in currentList)
 			and (self.imgType[pix[0], pix[1]+1]==pixType) and self.imgPlot[pix[0], pix[1]+1]==0):
 				neighborList.append((pix[0], pix[1]+1))
-		if((pix[1]>0) and ((pix[0], pix[1]-1) not in currentList)
+		if(self.isEdge((pix[0], pix[1]-1)) and (pix[1]>0) and ((pix[0], pix[1]-1) not in currentList)
 			and (self.imgType[pix[0], pix[1]-1]==pixType) and self.imgPlot[pix[0], pix[1]-1]==0):
 				neighborList.append((pix[0], pix[1]-1))
 
 		# if(self.stage==0):
 		if((self.stage==0 and random.randint(0, 1)==1) or (self.blobNum==0)):
-			if((pix[0]<(IMGSIZE-1)) and (pix[1]<(IMGSIZE-1)) and self.imgPlot[pix[0]+1, pix[1]+1]==0
+			if(self.isEdge((pix[0]+1, pix[1]+1)) and (pix[0]<(IMGSIZE-1)) and (pix[1]<(IMGSIZE-1)) and self.imgPlot[pix[0]+1, pix[1]+1]==0
 				and ((pix[0]+1, pix[1]+1) not in currentList) and (self.imgType[pix[0]+1, pix[1]+1]==pixType)):
 				neighborList.append((pix[0]+1, pix[1]+1))
-			if((pix[0]<(IMGSIZE-1)) and (pix[1]>0) and self.imgPlot[pix[0]+1, pix[1]-1]==0
+			if(self.isEdge((pix[0]+1, pix[1]-1)) and (pix[0]<(IMGSIZE-1)) and (pix[1]>0) and self.imgPlot[pix[0]+1, pix[1]-1]==0
 				and ((pix[0]+1, pix[1]-1) not in currentList) and (self.imgType[pix[0]+1, pix[1]-1]==pixType)):
 				neighborList.append((pix[0]+1, pix[1]-1))
-			if((pix[0]>0) and (pix[1]<(IMGSIZE-1)) and self.imgPlot[pix[0]-1, pix[1]+1]==0
+			if(self.isEdge((pix[0]-1, pix[1]+1)) and (pix[0]>0) and (pix[1]<(IMGSIZE-1)) and self.imgPlot[pix[0]-1, pix[1]+1]==0
 				and ((pix[0]-1, pix[1]+1) not in currentList) and (self.imgType[pix[0]-1, pix[1]+1]==pixType)):
 				neighborList.append((pix[0]-1, pix[1]+1))
-			if((pix[0]>0) and (pix[1]>0) and self.imgPlot[pix[0]-1, pix[1]-1]==0
+			if(self.isEdge((pix[0]-1, pix[1]-1)) and (pix[0]>0) and (pix[1]>0) and self.imgPlot[pix[0]-1, pix[1]-1]==0
 				and ((pix[0]-1, pix[1]-1) not in currentList) and (self.imgType[pix[0]-1, pix[1]-1]==pixType)):
 				neighborList.append((pix[0]-1, pix[1]-1))
-			# else:
-			# 	if((pix[0]<(IMGSIZE-1)) and (pix[1]<(IMGSIZE-1))
-			# 		and ((pix[0]+1, pix[1]+1) not in currentList) and (self.imgType[pix[0]+1, pix[1]+1]==pixType)):
-			# 		neighborList.append((pix[0]+1, pix[1]+1))
-			# 	if((pix[0]<(IMGSIZE-1)) and (pix[1]>0)
-			# 		and ((pix[0]+1, pix[1]-1) not in currentList) and (self.imgType[pix[0]+1, pix[1]-1]==pixType)):
-			# 		neighborList.append((pix[0]+1, pix[1]-1))
-			# 	if((pix[0]>0) and (pix[1]<(IMGSIZE-1))
-			# 		and ((pix[0]-1, pix[1]+1) not in currentList) and (self.imgType[pix[0]-1, pix[1]+1]==pixType)):
-			# 		neighborList.append((pix[0]-1, pix[1]+1))
-			# 	if((pix[0]>0) and (pix[1]>0)
-			# 		and ((pix[0]-1, pix[1]-1) not in currentList) and (self.imgType[pix[0]-1, pix[1]-1]==pixType)):
-			# 		neighborList.append((pix[0]-1, pix[1]-1))
 
 		random.shuffle(neighborList)
 
@@ -184,52 +215,6 @@ class Blob():
 		if(self.stage==2):
 			self.outerList.extend(neighborList)
 						
-	# def fillHoles(self, count, intervalList):
-	# 	closed=[]
-	# 	for j in range(IMGSIZE):
-	# 		rowIntervals=[]
-	# 		for i in range(IMGSIZE):
-	# 			for k in range(len(intervalList[i])):
-	# 				if(intervalList[i][k][0]<=j and intervalList[i][k][1]>=j):
-						# print 'Intersection at Row '+str(j)+', interval is '+str(intervalList[i][k])+' at Col '+str(i)
-
-	# def holeSweep(self):
-		# print self.blobNum
-	# 	intervalList=[]
-	# 	for i in range(IMGSIZE):
-			# print "Sweeping Col: " + str(i)
-	# 		first=None
-	# 		last=None
-	# 		inBlob=False
-	# 		colIntervals=[]
-	# 		if(self.imgType[i,0]!=self.blobNum):
-			# print 'NOPE!'
-	# 			first=0
-	# 		else:
-			# print 'Blob starting at: '+str(0)
-	# 			inBlob=True
-	# 		for j in range(IMGSIZE):
-	# 			if(inBlob==True and self.imgType[i,j]!=self.blobNum):
-				# print 'Blob ending at: '+str(j)
-	# 				inBlob=False
-	# 				first=j
-	# 				# if(j==IMGSIZE-1):
-	# 				# 	colIntervals.append((IMGSIZE-1, IMGSIZE-1, 'open', i))
-	# 			if(inBlob==False and (self.imgType[i,j]==self.blobNum or j==IMGSIZE-1)):
-				# print 'Blob starting at: '+str(j)
-	# 				inBlob=True
-	# 				last=j-1
-	# 				if(j==IMGSIZE-1 or first==0):
-	# 					colIntervals.append((first, j, 'open', i))
-	# 				else:
-	# 					colIntervals.append((first, last, 'closed', i))
-	# 			# if(inBlob==False and j==IMGSIZE-1):
-	# 			# 	last=j-1
-	# 			# 	colIntervals.append((first, last, 'open'))
-	# 		intervalList.append(colIntervals)
-			# print colIntervals
-	# 	return intervalList
-		# print intervalList
 
 	def holeBFS(self):
 		vertices=[]
@@ -290,31 +275,88 @@ class Blob():
 					self.pix=(i,j)
 					return
 
+	def getList(self, blobNum):
+		center=[0.0,0.0]
+		wWeight=[0]*IMGSIZE
+		hWeight=[0]*IMGSIZE
+		blobList=[]
+		for i in range(IMGSIZE):
+			for j in range(IMGSIZE):
+				if(self.imgType[i,j]==blobNum):
+					blobList.append((i,j))
+					wWeight[i]=wWeight[i]+1
+					hWeight[j]=hWeight[j]+1
+		wPoint=0
+		hPoint=0
+		wBal=np.zeros((IMGSIZE), dtype=np.int)
+		hBal=np.zeros((IMGSIZE), dtype=np.int)
+		for i in range(IMGSIZE):
+			# print 'i='+str(i)
+			# Width balancing
+			lWeight=0
+			rWeight=0
+			l=i-1
+			r=i+1
+			while(l>=0):
+				lWeight=lWeight+wWeight[l]
+				l=l-1
+			while(r<IMGSIZE):
+				# print 'r='+str(r)
+				rWeight=rWeight+wWeight[r]
+				r=r+1
+			wBal[i]=abs(rWeight+lWeight)
+			# Height balancing
+			tWeight=0
+			bWeight=0
+			t=i-1
+			b=i+1
+			while(t>=0):
+				tWeight=tWeight+hWeight[t]
+				t=t-1
+			while(b<IMGSIZE):
+				bWeight=bWeight+hWeight[b]
+				b=b+1
+			hBal[i]=abs(tWeight+bWeight)
+		wIndex=wBal.argmin()
+		hIndex=hBal.argmin()
+		blobList.sort(key=lambda x: abs(0-abs(x[0]-wIndex)-abs(x[1]-hIndex)))
+		return blobList
+
 	def getLegalShades(self):
 		if(self.imgType[self.pix[0], self.pix[1]]==0):
-			shades=[1, self.blobThresh+1]
+			shades=[1, 255-self.blobThresh]
 		else:
 			shades=[self.blobThresh+1, 255]
+		# print 'FOR PIX '+str(self.pix)+':'+' Shades='+str(shades)
 		seq=[-1, 0, 1]
+		avgShade=[0, 0]
 		for i in seq:
 			a=self.pix[0]+i
 			for j in seq:
 				b=self.pix[1]+j
 				# Don't check shade for selected pix, only for neighbors
+
 				if(i==j==0):
 					continue
+				
 				if((0<=a<IMGSIZE) and (0<=b<IMGSIZE)):
+					# print 'Checking neighbor at: '+'('+str(a)+','+str(b)+')'
+
+					# if(self.imgPlot[a,b]!=0):
+						# print "Neighbor shade is: "+str(self.imgPlot[a,b])
 					# If cell unshaded, skip
-					# if(self.imgPlot[a, b]==0):
-					# 	continue
+					if(self.imgPlot[a, b]==0):
+						continue
 					# Make sure blob thresh can be met by any border cells.
-					# if (self.imgType[a,b]==0 and shades[1]>255-self.blobThresh):
-					# 	shades[1]=255-self.blobThresh
-					# if (self.imgType[a,b]>0 and shades[0]<1+self.blobThresh):
-					# 	shades[0]=self.blobThresh+1
+					if (self.imgType[a,b]==0 and shades[1]>255-self.blobThresh):
+						shades[1]=255-self.blobThresh
+					if (self.imgType[a,b]>0 and shades[0]<1+self.blobThresh):
+						shades[0]=self.blobThresh+1
 
 					# print 'before: ' + str(shades)
 					if(self.imgType[a,b]!=self.imgType[self.pix[0], self.pix[1]] and self.imgPlot[a, b]!=0):
+						# avgShade[0]=avgShade[0]+1
+						# avgShade[1]=avgShade[1]+self.imgPlot[a, b]
 						# print 'Not same type'
 						if(self.imgType[a,b]==0):#In a blob next to non-blob
 							if(shades[0]>(self.imgPlot[a,b]+self.blobThresh)):
@@ -331,6 +373,8 @@ class Blob():
 								shades[1]=self.imgPlot[a,b]-self.blobThresh
 								# print 'b ' + str(shades)
 					if(self.imgType[a,b]==self.imgType[self.pix[0], self.pix[1]] and self.imgPlot[a, b]!=0):
+						avgShade[0]=avgShade[0]+1
+						avgShade[1]=avgShade[1]+self.imgPlot[a, b]
 						# print 'Same type'
 						if(shades[0]<(self.imgPlot[a,b]-self.innerThresh)):
 							shades[0]=self.imgPlot[a,b]-self.innerThresh
@@ -340,88 +384,143 @@ class Blob():
 							# print self.imgPlot[a, b]
 							shades[1]=self.imgPlot[a,b]+self.innerThresh
 							# print 'd ' + str(shades)
+					# print 'Final shades is: '+str(shades)+'\n'
 		# print 'Shades = ' + str(shades)
-		return (shades[0], shades[1])
-					
-
-
-	# def fillShades(self, i):
-
-	# 	filled=False
-
-	# 	while(filled==False):
-	# 		if(self.pix==None):
-	# 			if(i==0):
-	# 				self.findBGPix()
-	# 			else:
-	# 				self.pix=self.startPT.pop()
-	# 			self.blobNum=self.imgType[self.pix[0], self.pix[1]]
-	# 		else:
-	# 			if(self.getPix(0,0)==False):
-	# 				filled=True
-	# 				continue
-	# 		self.getPix
-	# 		self.addNeighbors()
-	# 	# print self.blobList
-	# 		shades=self.getLegalShades()
-	# 	# print shades
-	# 		# if(shades==None):
-
-			# x=int(random.gauss(shades[1], self.sigma))
-			# x=x+shades[0]
-			# if(x>shades[1]):
-			# 	x=shades[1]-(x-shades[1])
-			# if(x<shades[0]):
-			# 	x=shades[0]
-			# x=random.randint(shades[0], shades[1])
-	# 		self.imgPlot[self.pix[0], self.pix[1]]=x
-	# 		self.shaded[self.pix[0], self.pix[1]]=1
-
-	def fillShades(self, i):
-		for i in range(IMGSIZE):
-			for j in range(IMGSIZE):
-				self.pix=(i, j)
-				shades=self.getLegalShades()
-				if(shades[0]>shades[1]):
+		if(shades[0]>shades[1]):
 					x=(shades[0]+shades[1])/2
-				else:
+					shades[0]=x
+					shades[1]=x
+		if(avgShade[0]!=0):
+			avgShade=avgShade[1]/avgShade[0]
+		else:
+			avgShade=random.randint(shades[0], shades[1])
+		# print avgShade
+		return (shades[0], shades[1]), avgShade
 					
-					x=int(random.gauss(shades[1], self.shaderSigma))
-					x=x+shades[0]
-					if(x>shades[1]):
-						x=shades[1]-(x-shades[1])
-					if(x<shades[0]):
-						x=shades[0]
-					# x=random.randint(shades[0], shades[1])
-					self.imgPlot[self.pix[0], self.pix[1]]=x
+	def fillShades(self):
+		## ITERATE BY ROW+COL
 
+		# for i in range(IMGSIZE):
+		# 	for j in range(IMGSIZE):
+		# 		self.pix=(i, j)
+		# 		shades, avgShade=self.getLegalShades()
+		# 		avgShade=np.clip([avgShade], shades[0], shades[1])
+		# 		avgShade=avgShade[0]
+		# 		if(shades[0]>shades[1]):
+		# 			x=(shades[0]+shades[1])/2
+		# 		else:
+		# 			# print shades
+		# 			sig=int(float(self.shaderSigma)/100*(shades[1]-shades[0]))
+		# 			# print avgShade
+		# 			# print sig
+		# 			# print shades[1]-shades[0]
+		# 			# print 'HERE: '+str(float(self.shaderSigma)/100)
+		# 			# print self.shaderSigma
+		# 			x=int(random.gauss(avgShade, sig))
+		# 			# x=x+shades[0]
+		# 			if(x>shades[1]):
+		# 				x=shades[1]-(x-shades[1])
+		# 			if(x<shades[0]):
+		# 				x=shades[0]
+		# 			# x=random.randint(shades[0], shades[1])
+		# 		self.imgPlot[self.pix[0], self.pix[1]]=x
+
+		## ITERATE RANDOMLY
+
+		# cells=[]
+		# for i in range(IMGSIZE):
+		# 	for j in range(IMGSIZE):
+		# 		cells.append((i, j))
+		# random.shuffle(cells)
+		# for i in range(len(cells)):
+		# 	# print i
+		# 	# print len(cells)
+		# 	self.pix=cells.pop()
+		# 	shades, avgShade=self.getLegalShades()
+		# 	# print "First: "
+		# 	# print avgShade
+		# 	avgShade=np.clip([avgShade], shades[0], shades[1])
+		# 	avgShade=avgShade[0]
+		# 	# print avgShade
+		# 	if(shades[0]>shades[1]):
+		# 		x=(shades[0]+shades[1])/2
+		# 	else:
+		# 		# avgShade=np.clip
+		# 		x=int(random.gauss(int(avgShade), self.shaderSigma))
+		# 		# print x
+		# 		if(x>shades[1]):
+		# 			x=shades[1]-(x-shades[1])
+		# 		if(x<shades[0]):
+		# 			x=shades[0]
+		# 			# x=random.randint(shades[0], shades[1])
+		# 	self.imgPlot[self.pix[0], self.pix[1]]=x
 			# currently all blobs black
 			# 0=white 255=black
 
+		## Iterate pix from center
+		for i in range(self.numBlob+1):
+			# i=self.numBlob-i
+			pixList=self.getList(i)
+			for j in pixList:
+				# print 'blob '+str(i)+'pix '+str(j)
+				self.pix=j
+				shades, avgShade=self.getLegalShades()
+				avgShade=np.clip([avgShade], shades[0], shades[1])
+				avgShade=avgShade[0]
+				# if(shades[0]>shades[1]):
+				# 	x=(shades[0]+shades[1])/2
+				# else:
+					# print shades
+				sig=int(float(self.shaderSigma)/100*(shades[1]-shades[0]))
+				# print avgShade
+				# print sig
+				# print shades[1]-shades[0]
+				# print 'HERE: '+str(float(self.shaderSigma)/100)
+				# print 'shaderSigma='+str(sig)
+				x=int(random.gauss(avgShade, sig))
+				# x=x+shades[0]
+				if(x>shades[1]):
+					x=shades[1]-(x-shades[1])
+				if(x<shades[0]):
+					x=shades[0]
+					# x=random.randint(shades[0], shades[1])
+				self.imgPlot[self.pix[0], self.pix[1]]=x
+
+
+
 	def makeImg(self):
-		img=Image.new('L', (IMGSIZE,IMGSIZE), 'black')
+		img=Image.new('RGB', (IMGSIZE,IMGSIZE), 'white')
 		# self.imgType=img.load()
+		print 'Making image: '+self.name
 
 		for i in range(self.numBlob):
 			# print "\n\n\n\n\nblob: " + str(i)
 			self.blobNum=i+1
-			# print 'WORKING ON PIX ' + str(i)
+			# print 'In Make Img, WORKING ON PIX ' + str(i)
+
 			blobSize = random.randint(self.minSize, self.maxSize)
 			# print blobSize
 			for j in range(blobSize):
 				self.last=self.pix
-				if(self.getPix(j, blobSize)==False):
+				if(self.getPix(blobSize)==False):
 					break
 				legalPix=[0, self.blobNum]
-				if(self.clearSurrounding(self.pix[0], self.pix[1], self.betweenBlobs, legalPix)==False):
-					goodPix=False
-					while(goodPix==False):
-						if(self.getPix(j, blobSize)==False):
-							break
-						
-
-						if(self.clearSurrounding(self.pix[0], self.pix[1], self.betweenBlobs, legalPix)==True):
-							goodPix=True
+				if(j==0):
+					if(self.clearSurrounding(self.pix[0], self.pix[1], IMGSIZE*(1/3), legalPix)==False):
+						goodPix=False
+						while(goodPix==False):
+							if(self.getPix(blobSize)==False):
+								break
+							if(self.clearSurrounding(self.pix[0], self.pix[1], IMGSIZE*(1/3), legalPix)==True):
+								goodPix=True
+				else:
+					if(self.clearSurrounding(self.pix[0], self.pix[1], self.betweenBlobs, legalPix)==False):
+						goodPix=False
+						while(goodPix==False):
+							if(self.getPix(blobSize)==False):
+								break
+							if(self.clearSurrounding(self.pix[0], self.pix[1], self.betweenBlobs, legalPix)==True):
+								goodPix=True
 
 				self.addNeighbors()
 				# print "Pix = " + str(self.pix[0]) + ", " + str(self.pix[1])
@@ -445,45 +544,35 @@ class Blob():
 			self.typeList=[]
 		self.stage=1
 
-		self.fillShades(0)
+		self.fillShades()
 
-		# for i in range(self.numBlob+1):
-		# 	# if(i==0):
-		# 	# # print 'Filling BG'
-		# 	# else:
-		# 	print "Filling blob #" + str(i)
-		# 	if(i==0):
-		# 		self.blobNum=0
-		# 		self.findBGPix()
-		# 	# print "BG pix = " + str(self.pix)
-		# 		self.addNeighbors()
-		# 	# print self.blobList
-		# 		self.fillShades(i)
-
-		# 	else:
-		# 		self.fillShades(i)
-		# 		self.pix=None
 		toSave=img.load()
-		# for i in range(IMGSIZE):
-		# 	for j in range(IMGSIZE):
-		# 		if(self.imgType[i,j]==0):
-		# 			toSave[i,j]=0
-		# 		if(self.imgType[i,j]==1):
-		# 			toSave[i,j]=75
-		# 		if(self.imgType[i,j]==2):
-		# 			toSave[i,j]=160
-		# 		if(self.imgType[i,j]==3):
-		# 			toSave[i,j]=255
 
 		for i in range(IMGSIZE):
 			for j in range(IMGSIZE):
-				toSave[i,j]=self.imgPlot[i,j]
+				toSave[i,j]=(self.imgPlot[i,j],0,255-self.imgPlot[i,j])#255-self.imgPlot[i,j]
 
 		self.pix=None
 		# self.typeList=[]
-
+		# img.save(self.dirPath + '/' + 'BEFORE_FILTER_'+self.name + '.png')
+		img=img.filter(ImageFilter.SMOOTH)
 		img.save(self.dirPath + '/' + self.name + '.png')
 
 
 
+		#bimg=Image.new('1', (IMGSIZE, IMGSIZE), 'black')
+		# bToSave=bimg.load()
+		# for i in range(IMGSIZE):
+		# 	for j in range(IMGSIZE):
+		# 		if(self.imgType[i, j]==0):
+		# 			bToSave[i, j]=1
+		# 		else:
+		# 			bToSave[i, j]=0
+		# bimg.save(self.dirPath + '/BW.png')
+
+		# self.imgPlot=mirrorDiag(self.imgPlot)
+		# self.imgType=mirrorDiag(self.imgType)
+
+		# print self.imgType
+		# print self.imgPlot
 
