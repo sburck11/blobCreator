@@ -33,6 +33,7 @@ if(MODE=='mp'):
 		# numBlob=random.randint(1, 2)
 		# FALSE
 		if(type==3):
+			isTrue=False
 			numBlob=random.randint(2, 3)
 			touchingEdge=False
 			sigma=random.randint(30, 120)
@@ -44,6 +45,7 @@ if(MODE=='mp'):
 			name='FALSE_'+str(i)
 		# MARGINAL
 		elif(type==2):
+			isTrue=False
 			numBlob=1
 			touchingEdge=False
 			flaw=random.randint(0,2)
@@ -76,6 +78,7 @@ if(MODE=='mp'):
 			name='MARGINAL_'+str(i)
 		# TRUE
 		else:
+			isTrue=True
 			numBlob=1
 			touchingEdge=True
 			sigma=random.randint(130, 225)
@@ -92,7 +95,7 @@ if(MODE=='mp'):
 		# else:
 		# 	name='FALSE_'+str(i)
 		testImage=Blob(numBlob, minSize, maxSize, blobThresh, innerThresh,
-			sigma, shaderSigma, path, betweenBlobs, touchingEdge, name)
+			sigma, shaderSigma, path, betweenBlobs, touchingEdge, isTrue, name)
 		imgArr.append(testImage)
 	pool.map(Blob.makeImg, imgArr)
 
