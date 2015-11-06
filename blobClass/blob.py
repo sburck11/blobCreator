@@ -18,7 +18,7 @@ def mirrorDiag(plot):
 
 class Blob():
 
-	def __init__(self, numBlob, minSize, maxSize, blobThresh, innerThresh, sigma, shaderSigma, dirPath, betweenBlobs, touchingEdge, isTrue, name):
+	def __init__(self, numBlob, minSize, maxSize, blobThresh, innerThresh, sigma, shaderSigma, dirPath, betweenBlobs, touchingEdge, flatBG, filterOn, name):
 		self.imgType=np.zeros((IMGSIZE, IMGSIZE), dtype=np.int)
 		self.imgPlot=np.zeros((IMGSIZE, IMGSIZE), dtype=np.int)
 		self.shaded=np.zeros((IMGSIZE, IMGSIZE), dtype=np.int)
@@ -43,7 +43,8 @@ class Blob():
 		self.startPT=[]
 		self.betweenBlobs=betweenBlobs
 		self.touchingEdge=touchingEdge
-		self.isTrue=isTrue
+		self.flatBG=flatBG
+		self.filterOn=filterOn
 
 	def clearSurrounding(self, x, y, rad, pixVal):
 		# print 'in clearSurrounding x = '+str(x)+', y = '+str(y)
@@ -325,7 +326,7 @@ class Blob():
 
 	def getLegalShades(self):
 		if(self.imgType[self.pix[0], self.pix[1]]==0):
-			if(self.isTrue==True):
+			if(self.flatBG==True):
 				shades=[1,1]
 			else:
 				shades=[1, 255-self.blobThresh]
@@ -559,7 +560,8 @@ class Blob():
 		self.pix=None
 		# self.typeList=[]
 		# img.save(self.dirPath + '/' + 'BEFORE_FILTER_'+self.name + '.png')
-		img=img.filter(ImageFilter.SMOOTH)
+		if(self.filterOn==True):
+			img=img.filter(ImageFilter.BLUR)
 		img.save(self.dirPath + '/' + self.name + '.png')
 
 
