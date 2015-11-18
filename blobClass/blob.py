@@ -18,7 +18,7 @@ def mirrorDiag(plot):
 
 class Blob():
 
-	def __init__(self, numBlob, minSize, maxSize, blobThresh, innerThresh, sigma, shaderSigma, dirPath, betweenBlobs, touchingEdge, flatBG, filterOn, name):
+	def __init__(self, numBlob, minSize, maxSize, blobThresh, innerThresh, sigma, shaderSigma, dirPath, betweenBlobs, touchingEdge, flatBG, filterOn, addColors, name):
 		self.imgType=np.zeros((IMGSIZE, IMGSIZE), dtype=np.int)
 		self.imgPlot=np.zeros((IMGSIZE, IMGSIZE), dtype=np.int)
 		self.shaded=np.zeros((IMGSIZE, IMGSIZE), dtype=np.int)
@@ -45,6 +45,7 @@ class Blob():
 		self.touchingEdge=touchingEdge
 		self.flatBG=flatBG
 		self.filterOn=filterOn
+		self.addColors=addColors
 
 	def clearSurrounding(self, x, y, rad, pixVal):
 		# print 'in clearSurrounding x = '+str(x)+', y = '+str(y)
@@ -553,9 +554,61 @@ class Blob():
 
 		toSave=img.load()
 
-		for i in range(IMGSIZE):
-			for j in range(IMGSIZE):
-				toSave[i,j]=(self.imgPlot[i,j],0,255-self.imgPlot[i,j])#255-self.imgPlot[i,j]
+		if(self.addColors==True):
+			# 0 - 1 and 2
+			# 1 - randomly swap colors representing blobs/background
+			# 2 - add third color (variable)
+			colorMod=random.randint(0,2)
+			if(colorMod==0):
+				vals=[0,1,2]
+				a=random.choice(vals)
+				vals.remove(a)
+				b=random.choice(vals)
+				vals.remove(b)
+				c=vals[0]
+				for i in range(IMGSIZE):
+					for j in range(IMGSIZE):
+						toMix=[self.imgPlot[i,j],0,255-self.imgPlot[i,j]]
+						toSave[i,j]=(toMix[a],toMix[b],toMix[c])
+			elif(colorMod==1):
+				if(bool(random.getrandbits(1))==True):
+					green=random.randint(0,255)
+					for i in range(IMGSIZE):
+						for j in range(IMGSIZE):
+							toSave[i,j]=(self.imgPlot[i,j],green,255-self.imgPlot[i,j])
+				else:
+					for i in range(IMGSIZE):
+						for j in range(IMGSIZE):
+							toSave[i,j]=(self.imgPlot[i,j],random.randint(0,255),255-self.imgPlot[i,j])
+			elif(colorMod==2):
+				if(bool(random.getrandbits(1))):
+					vals=[0,1,2]
+					a=random.choice(vals)
+					vals.remove(a)
+					b=random.choice(vals)
+					vals.remove(b)
+					c=vals[0]
+					for i in range(IMGSIZE):
+						for j in range(IMGSIZE):
+							toMix=[self.imgPlot[i,j],random.randint(0,255),255-self.imgPlot[i,j]]
+							toSave[i,j]=(toMix[a],toMix[b],toMix[c])
+				else:
+					vals=[0,1,2]
+					a=random.choice(vals)
+					vals.remove(a)
+					b=random.choice(vals)
+					vals.remove(b)
+					c=vals[0]
+					green=random.randint(0,255)
+					for i in range(IMGSIZE):
+						for j in range(IMGSIZE):
+							toMix=[self.imgPlot[i,j],green,255-self.imgPlot[i,j]]
+							toSave[i,j]=(toMix[a],toMix[b],toMix[c])
+
+		else:
+			for i in range(IMGSIZE):
+				for j in range(IMGSIZE):
+					toSave[i,j]=(self.imgPlot[i,j],0,255-self.imgPlot[i,j])
 
 		self.pix=None
 		# self.typeList=[]

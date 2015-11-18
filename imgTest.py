@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 import threading
+import time
 from blobClass.blob import Blob
 from pathos.multiprocessing import ProcessingPool
 
@@ -14,7 +15,7 @@ innerThresh=50
 sigma=55
 shaderSigma=30
 betweenBlobs=5
-path='/Users/Sam/Desktop/regenProj/blobCreator/set_1'
+path='/Users/Sam/Desktop/regenProj/Blob_Images/blobClass1'
 # 'mp' for multiprocessing, 'mt' for multithreading
 MODE='mp'
 
@@ -22,13 +23,12 @@ MODE='mp'
 # Multithreading
 if(MODE=='mp'):
 	# 1 sec/img for nodes=4
-
 	pool=ProcessingPool(nodes=4)	
 	imgArr=[]
-	for i in range(50):
-		# print i
+	for i in range(5000):
 		# sigma = (1.2*i)+1
 		type=random.randint(1,4)
+		addColors=False
 		# type=2
 		# numBlob=random.randint(1, 2)
 		# FALSE
@@ -41,12 +41,14 @@ if(MODE=='mp'):
 				numBlob=random.randint(2,3)
 			touchingEdge=False
 			sigma=random.randint(5, 40)
-			shaderSigma=random.randint(1, 150)
+			shaderSigma=random.randint(1, 30)
 			minSize=random.randint(800, 1000)
 			maxSize=random.randint(1000, 3000)
 			blobThresh=random.randint(30, 120)
 			innerThresh=random.randint(40, 180)
 			name='D_'+str(i)
+			if(bool(random.getrandbits(1))):
+				addColors=True
 		elif(type==3):
 			# Grade C
 			filterOn=False
@@ -154,10 +156,11 @@ if(MODE=='mp'):
 		# else:
 		# 	name='FALSE_'+str(i)
 		testImage=Blob(numBlob, minSize, maxSize, blobThresh, innerThresh,
-			sigma, shaderSigma, path, betweenBlobs, touchingEdge, flatBG, filterOn, name)
+			sigma, shaderSigma, path, betweenBlobs, touchingEdge, flatBG, filterOn, addColors, name)
 		imgArr.append(testImage)
 
 	pool.map(Blob.makeImg, imgArr)
+
 
 # else:
 # 	threads=[]
