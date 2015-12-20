@@ -20,7 +20,6 @@ path='/Users/Sam/Desktop/regenProj/Blob_Images/blobClass1'
 MODE='mp'
 
 
-# Multithreading
 if(MODE=='mp'):
 	# 1 sec/img for nodes=4
 	pool=ProcessingPool(nodes=4)	
