@@ -4,19 +4,24 @@ import numpy as np
 import random
 from blobClass.blob import Blob
 
-numBlob=1
-minSize=1200
-maxSize=4000
-blobThresh=120
-innerThresh=60
+numBlob=2
+minSize=800
+maxSize=1200
+blobThresh=130
+innerThresh=190
 sigma=120
-shaderSigma=40
+shaderSigma=5
 betweenBlobs=5
 path='/Users/Sam/Desktop/regenProj/blobCreator/Make_1'
-name='InnerThresh-20__Sigma-'
+name='edgeToEdge'
+filterOn=False
+flatBG=False
+touchingEdge=False
+addColors=False
+
 
 testImage=Blob(numBlob, minSize, maxSize, blobThresh, innerThresh,
-		sigma, shaderSigma, path, betweenBlobs, name)
+			sigma, shaderSigma, path, betweenBlobs, touchingEdge, flatBG, filterOn, addColors, name)
 testImage.makeImg()
 
 
